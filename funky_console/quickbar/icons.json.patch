@@ -1,0 +1,11 @@
+[
+  {
+    "op": "add",
+    "path": "/normal/-",
+    "value": {
+      "label": "Funky Bot",
+	    "pane" : "/interface/funkyBot/main.config",
+      "icon": "/animations/music/music.png?brightness=20"
+    }
+  }
+]
