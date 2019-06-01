@@ -1,0 +1,9 @@
+{
+  "name" : "Funky Console",
+  "path" : ".",
+  "requires" : [],
+  "includes" : [],
+  "version" : "1.0",
+  "author" : "mad groovy",
+  "description": "A simple modular console with a follower."
+}
