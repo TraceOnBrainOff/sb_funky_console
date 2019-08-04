@@ -10,6 +10,42 @@ commands = {}
     }
 ]]
 
+function idFromList(ind)
+    if miscCanvas.spcLayout ~= "playerQuery" then
+        commandCanvas:addText("listPlayers wasn't called.")
+        return
+    end
+    if tonumber(ind) == nil then
+        commandCanvas:addText("Argument isn't a number.")
+        return
+    end
+    local l = tonumber(ind)
+    local query = deepCopy(miscCanvas.tempStorage) -- get a copy of the stored player ids
+    local id = query[l]
+    if not id then
+        commandCanvas:addText("Out of bounds.")
+        return
+    end
+    if not world.entityExists(id) then
+        commandCanvas:addText("Player not found.")
+        return
+    end
+    return id
+end
+
+function pageConverter(canvas, array) -- snips an array of strings into an array of arrays of strings dependant on the canvas line size
+    local availableLines = canvas:maxLines()
+    local pageCount = math.ceil(#array/availableLines)
+    local pageStorage = {}
+    for page = 1, pageCount do
+        pageStorage[#pageStorage+1] = {}
+        for i=1, availableLines do
+            pageStorage[page][i] = array[i+availableLines*(page-1)] or ""
+        end
+    end
+    return pageStorage
+end
+
 commands.thighs = {
     desc = "The old classic.",
     func = function(args)
@@ -17,6 +53,7 @@ commands.thighs = {
     end
 }
 
+--[[
 commands.help = {
     desc = "Lists all commands.",
     usage = "[<page>]",
@@ -37,6 +74,21 @@ commands.help = {
             local name = names[i]
             commandCanvas:addText(name and name or "")
         end
+    end
+}
+]]
+
+commands.help = {
+    desc = "Lists all commands.",
+    func = function(args)
+        commandCanvas:clearText()
+        local commandCount = 0
+        local names = {} -- have to dump the names into an array of strings for this to work
+        for name, params in pairs(commands) do
+            names[#names+1] = name
+            commandCount = commandCount + 1
+        end
+        commandCanvas:specialLayout("help", {}, "Help", pageConverter(commandCanvas, names))
     end
 }
 
@@ -244,15 +296,17 @@ commands.followerFollowPlayer = {
     end
 }
 
-commands.listPlayers = {
-    desc = "Lists the nearby players.",
+commands.ls = {
+    desc = "Lists nearby players.",
     func = function(args)
         local plQuery = world.playerQuery(world.entityPosition(player.id()), 1000, {order = "nearest"})
+        local toStore = {}
         for i=1, miscCanvas:maxLines() do
             local toPrint = plQuery[i] and string.format("%i. %s", i, world.entityName(plQuery[i])) or ""
             miscCanvas:addText(toPrint)
+            toStore[#toStore+1] = plQuery[i]
         end
-        miscCanvas:specialLayout("playerQuery")
+        miscCanvas:specialLayout("playerQuery", toStore, "Player Listing")
     end
 }
 
@@ -260,45 +314,15 @@ commands.followerFollowPlayer = {
     desc = "Changes the anchored entity. Do 'listPlayers' beforehand.",
     usage = "<Player Index (from listPlayers)>",
     func = function(args) 
-        if miscCanvas.spcLayout ~= "playerQuery" then
-            commandCanvas:addText("listPlayers wasn't called.")
-            return
-        end
         if #args ~= 1 then
             commandCanvas:addText("Number of arguments is invalid. #args = "..#args)
             return
         end
-        if tonumber(args[1]) == nil then
-            commandCanvas:addText("Argument isn't a number.")
-            return
+        local target = idFromList(args[1])
+        if target then
+            local r = world.sendEntityMessage(player.id(), "followerSetFollowID", target):result()
+            commandCanvas:addText("Now following: ".. world.entityName(target))
         end
-        local l = tonumber(args[1])
-        local query = deepCopy(miscCanvas.textStorage) -- get a copy of the stored players in misc canvas
-        local line = query[l]
-        if not line then
-            commandCanvas:addText("Out of bounds.")
-            return
-        end
-        if not string.find(line, "%p") then
-            commandCanvas:addText("Out of bounds.")
-            return
-        end
-        local playerName = string.sub(line, (string.find(line, "%p")+2)) -- %p gets the position of the dot, so +2 jumps over the dot and the space.
-        sb.logInfo(playerName)
-        local plQuery = world.playerQuery(world.entityPosition(player.id()), 1000)
-        local foundID = 0 -- players can't be ID 0, so defaulting to this is aight
-        for i, id in ipairs(plQuery) do
-            if world.entityName(id) == playerName then
-                foundID = id
-                break --jump out of the loop
-            end
-        end
-        if foundID == 0 then
-            commandCanvas:addText("Player not found.")
-            return
-        end
-        local r = world.sendEntityMessage(player.id(), "followerSetFollowID", foundID):result()
-        commandCanvas:addText("Now following: ".. world.entityName(foundID))
     end
 }
 
@@ -319,5 +343,71 @@ commands.howToUse = {
             return
         end
         commandCanvas:addText(string.format("%s %s", args[1], commands[args[1]].usage))
+    end
+}
+
+commands.page = { -- note: errors misalign the page again, removing the special layout.
+    desc = "Page desc",
+    usage = "<page (int)> <canvas>",
+    func = function(args)
+        if #args > 2 then
+            commandCanvas:addText("Incorrect number of arguments.")
+            return
+        end
+        local page = tonumber(args[1])
+        if not page then
+            commandCanvas:addText("The second argument isn't a number")
+            return
+        end
+        local canvas
+        local specialLayoutCount = {} -- fuck you
+        for i, canvasName in ipairs(canvases) do
+            if _ENV[canvasName.."Canvas"].pages then
+                specialLayoutCount[#specialLayoutCount+1] = canvasName.."Canvas"
+            end
+        end
+        if #specialLayoutCount > 1 then
+            if args[2]:lower() == "command" or args[2]:lower() == "commands" then
+                canvas = commandCanvas
+            elseif args[2]:lower() == "misc" then
+                canvas = miscCanvas
+            else
+                commandCanvas:addText("Canvas doesn't exist. Try 'commands' or 'misc'.")
+                return
+            end
+        else
+            canvas = _ENV[specialLayoutCount[1]]
+        end
+        if not canvas.pages then
+            commandCanvas:addText("This special layout doesn't contain more pages.")
+            return
+        end
+        if not canvas.pages[page] then
+            commandCanvas:addText("Page doesn't exist.")
+            return
+        end
+        canvas:setPage(page)
+    end
+}
+
+commands.radioMsg = {
+    desc = "Radio messages the person",
+    usage = "<Player Index (from listPlayers)",
+    func = function(args)
+        local plQuery = world.playerQuery(world.entityPosition(player.id()), 1000)
+        local message = {
+            messageId = sb.makeUuid(),
+            unique = false,
+            important = true,
+            type = "generic",
+            senderName = "",
+            textSpeed = 30,
+            persistTime = 4,
+            text = table.concat(args, " ")
+        }
+        for i, id in ipairs(plQuery) do
+            world.sendEntityMessage(id, "queueRadioMessage", message)
+        end
+        commandCanvas:addText("Sent.")
     end
 }
