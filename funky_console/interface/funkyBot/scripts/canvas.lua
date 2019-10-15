@@ -2,20 +2,20 @@ Canvas = {}
 Canvas.__index = Canvas
 
 function Canvas:new(canvasName, headerName)
-    local self = {}
-    setmetatable(self, Canvas)
+    local ass = {}
+    setmetatable(ass, Canvas)
     if not canvasName then
         sb.logError("No canvas given")
         return
     end
-    self.textStorage = {} -- array of strings
-    self.canvas = widget.bindCanvas(canvasName)
-    self.canvasName = canvasName
-    self.headerName = headerName
-    self.textSize = 7
+    ass.textStorage = {} -- array of strings
+    ass.canvas = widget.bindCanvas(canvasName)
+    ass.canvasName = canvasName
+    ass.headerName = headerName
+    ass.textSize = 7
     if not canvases then canvases = {} end -- setting up a global table
     canvases[#canvases+1] = canvasName
-    _ENV[canvasName.."Canvas"] = self
+    _ENV[canvasName.."Canvas"] = ass
 end
 
 function Canvas:update()

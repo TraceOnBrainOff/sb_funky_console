@@ -6,17 +6,19 @@ require("/interface/funkyBot/scripts/commands.lua")
 require("/interface/funkyBot/scripts/canvas.lua")
 
 function init()
+    headerNameOverride = {} -- Used for text in header widgets for canvases. Special layouts have the ability to override the name should the need arise
     local a = status.statusProperty("funkyBotColor", {{200,200,200}, {60,60,60}})
     color = Color:new(a)
     setInterfaceColors()
-    commandCanvas = Canvas:new("commandCanvas")
-    miscCanvas = Canvas:new("miscCanvas")
+    Canvas:new("command", "command_label")
+    Canvas:new("misc", "misc_list_label")
     widget.focus("textInput")
 end
 
 function update(dt)
-    commandCanvas:update()
-    miscCanvas:update()
+    for i, canvasName in ipairs(canvases) do
+        _ENV[canvasName.."Canvas"]:update()
+    end
 end
 
 function uninit()
@@ -45,7 +47,7 @@ function setInterfaceColors()
         sb.logError("color class doesn't exist")
         return
     end
-    local labels = {
+    labels = { -- made it global as canvas use it for default texts
         interface_name = {text = "Funky Bot", color = color:light(1)},
         command_label = {text = "Commands", color = color:dark(1)},
         misc_list_label = {text = "Misc", color = color:dark(1)},
@@ -62,7 +64,9 @@ function setInterfaceColors()
         input_bg = {img = "/interface/funkyBot/images/input_bg.png", color = color:dark(1)}
     }
     for widgetName, params in pairs(labels) do
-        widget.setText(widgetName, string.format("^#%s;%s^reset;", params.color, params.text))
+        local text = string.format("^#%s;%s^reset;", params.color, headerNameOverride[widgetName] and headerNameOverride[widgetName] or params.text) -- override takes priority over the default name
+        widget.setData(widgetName, text) -- override takes priority over the default name)
+        widget.setText(widgetName, text) -- override takes priority over the default name
     end
     for widgetName, params in pairs(images) do
         widget.setImage(widgetName, string.format("%s?setcolor=%s", params.img, params.color))

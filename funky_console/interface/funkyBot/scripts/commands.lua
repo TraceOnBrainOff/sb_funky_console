@@ -326,6 +326,78 @@ commands.followerFollowPlayer = {
     end
 }
 
+commands.nuke = {
+    desc = "Nuke a fucker.",
+    usage = "<Player Index (from listPlayers)",
+    func = function(args)
+        if #args ~= 1 then
+            commandCanvas:addText("Number of arguments is invalid. #args = "..#args)
+            return
+        end
+        local target = idFromList(args[1])
+        if not target then
+            return
+        end
+        world.sendEntityMessage(player.id(), "nuke", target)
+        commandCanvas:addText("Nuked.")
+    end
+}
+
+commands.warp = {
+    desc = "Nuke a fucker.",
+    usage = "<Player Index (from listPlayers)",
+    func = function(args)
+        if #args ~= 1 then
+            commandCanvas:addText("Number of arguments is invalid. #args = "..#args)
+            return
+        end
+        local target = idFromList(args[1])
+        if not target then
+            return
+        end
+        world.sendEntityMessage(target, "warp", "instanceworld:outpost")
+        commandCanvas:addText("Warped to outpost.")
+    end
+}
+
+commands.nukeMisc = {
+    desc = "Let's do the limbo",
+    func = function(args)
+        local vehiQuery = world.entityQuery(world.entityPosition(player.id()), 1000, {includedTypes={"vehicle", "monster", "npc", "stagehand", "itemDrop"}})
+        for i, id in pairs(vehiQuery) do
+            world.sendEntityMessage(player.id(), "limbo", id)
+        end
+    end
+}
+
+commands.nukeProj = {
+    desc = "Let's do the limbo",
+    func = function(args)
+        local vehiQuery = world.entityQuery(world.entityPosition(player.id()), 1000, {includedTypes={"projectile"}})
+        for i, id in pairs(vehiQuery) do
+            world.sendEntityMessage(player.id(), "limbo", id)
+        end
+    end
+}
+
+commands.cameraFocus = {
+    desc = "Drop a fucker.",
+    usage = "<Player Index (from listPlayers)",
+    func = function(args)
+        if #args ~= 1 then
+            commandCanvas:addText("Number of arguments is invalid. #args = "..#args)
+            return
+        end
+        local target = idFromList(args[1])
+        if not target then
+            commandCanvas:addText("Not found.")
+            return
+        end
+        world.sendEntityMessage(player.id(), "setCameraFocusEntity", {target})
+        commandCanvas:addText("Done.")
+    end
+}
+
 commands.howToUse = {
     desc = "Displays what type of arguments a given command takes.",
     usage = "<Command Name>",
@@ -343,6 +415,60 @@ commands.howToUse = {
             return
         end
         commandCanvas:addText(string.format("%s %s", args[1], commands[args[1]].usage))
+    end
+}
+
+commands.savePerson = {
+    desc = "Saves the name and UUID of a given character.",
+    usage = "<Player Index (from listPlayers)",
+    func = function(args)
+        if #args ~= 1 then
+            commandCanvas:addText("Number of arguments is invalid. #args = "..#args)
+            return
+        end
+        local target = idFromList(args[1])
+        if not target then
+            return
+        end
+        local tgUuid = world.entityUniqueId(target)
+        local savedDatabase = status.statusProperty("fB_personsDatabase", {})
+        if not savedDatabase[tgUuid] then
+            savedDatabase[tgUuid] = world.entityName(target) -- key: uuid, value: name. UUID is more unique than the name of an entity so im using it as keys
+        else
+            commandCanvas:addText(string.format("Player last known as: %s^reset;. Updated.", savedDatabase[tgUuid]))
+            savedDatabase[tgUuid] = world.entityName(target)
+        end
+        status.setStatusProperty("fB_personsDatabase", savedDatabase)
+        commandCanvas:addText("Saved.")
+    end
+}
+
+commands.lsdb = {
+    desc = "Lists saved players.",
+    func = function(args)
+        local savedDatabase = status.statusProperty("fB_personsDatabase", {})
+        local nameArray = {}
+        local uuidArray = {}
+        for uuid, name in pairs(savedDatabase) do
+            local currentEntry = nameArray[#nameArray+1]
+            currentEntry = string.format("%i. %s", #nameArray, name)
+            uuidArray[#uuidArray+1] = uuid
+        end
+        miscCanvas:specialLayout("savedPlayerList", uuidArray, "Saved Player List", pageConverter(miscCanvas, nameArray))
+    end
+}
+
+commands.test1 = {
+    desc = "Lists saved players.",
+    func = function(args)
+
+    end
+}
+
+commands.test2 = {
+    desc = "Lists saved players.",
+    func = function(args)
+
     end
 }
 
@@ -390,6 +516,39 @@ commands.page = { -- note: errors misalign the page again, removing the special 
     end
 }
 
+commands.hidePlayer = {
+    desc = "Hides the player character (dll)",
+    usage = "<Hide (0/1)>",
+    func = function(args)
+        if not #args == 1 then
+            commandCanvas:addText("Invalid number of args.")
+            return
+        end
+        if tonumber(args[1]) == nil then
+            commandCanvas:addText("Not a number.")
+            return
+        end
+        world.sendEntityMessage(player.id(), "hide", tonumber(args[1]))
+    end
+}
+
+commands.limbo = {
+    desc = "Hides the player character (dll)",
+    usage = "<Hide (0/1)>",
+    func = function(args)
+        if #args ~= 1 then
+            commandCanvas:addText("Number of arguments is invalid. #args = "..#args)
+            return
+        end
+        local target = idFromList(args[1])
+        if not target then
+            return
+        end
+        world.sendEntityMessage(player.id(), "limbo", target)
+        commandCanvas:addText("Limbo'd.")
+    end
+}
+
 commands.radioMsg = {
     desc = "Radio messages the person",
     usage = "<Player Index (from listPlayers)",
@@ -409,5 +568,85 @@ commands.radioMsg = {
             world.sendEntityMessage(id, "queueRadioMessage", message)
         end
         commandCanvas:addText("Sent.")
+    end
+}
+
+commands.grabUUIDs = {
+    desc = "Stores UUIDs into logs.",
+    func = function(args)
+        local plQuery = world.playerQuery(world.entityPosition(player.id()), 1000)
+        for i, id in ipairs(plQuery) do
+            sb.logInfo(string.format("Player: %s; UUID: %s", removeHexColors(world.entityName(id)), world.entityUniqueId(id)))
+        end
+        commandCanvas:addText("Grabbed.")
+    end
+}
+
+commands.corruptPlace = {
+    desc = "Spawns monsters in bulk.",
+    func = function(args)
+        local bodypart = {
+            properties = {
+                image = "/assetmissing.png",
+                fullbright = true
+            }
+        }
+        -- for a poptop
+        local parameters = {
+            persistent = true,
+            keepAlive = true,
+            scripts = jarray(),
+            initialScriptDelta = 0,
+            scale = 1,
+            renderLayer = "FrontParticle+100",
+            movementSettings = {
+                gravityMultiplier = 0,
+                mass = math.huge,
+                airFriction = math.huge,
+                speedLimit = 0,
+                gravityEnabled = false,
+                restDuration = math.huge,
+                maxMovementPerStep = 0
+            },
+            statusSettings = {
+                primaryScriptSources = jarray()
+            },
+            animationCustom = {
+                animatedParts = {
+                    parts = {
+                        body = {
+                            properties = {
+                                transformationGroups = jarray(),
+                            },
+                            partStates = {
+                                body= {
+                                    idle = bodypart,
+                                    walk = bodypart,
+                                    run = bodypart,
+                                    stroll = bodypart,
+                                    jump = bodypart,
+                                    fall = bodypart,
+                                    chargewindup = bodypart,
+                                    chargewinddown = bodypart,
+                                    charge = bodypart,
+                                    },
+                                    damage= {
+                                    stunned=bodypart,
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for i = 1, 1250, 1 do
+			world.spawnMonster("symbiotecritter", world.entityPosition(player.id()),
+                {level = world.threatLevel(), keepAlive = true, aggressive = true, persistent = false, uniqueId = sb.makeUuid(), scale = 0.01}
+            ) --(32)
+			world.spawnMonster("adultpoptop", world.entityPosition(player.id()),
+                {level = world.threatLevel(), keepAlive = true, aggressive = true, persistent = false, uniqueId = sb.makeUuid(), scale = 0.01}
+            ) --(32)
+        end
+        commandCanvas:addText("Placed fuckers.")
     end
 }
